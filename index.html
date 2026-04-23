@@ -1,0 +1,726 @@
+﻿﻿<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تبسيط مسارات البكالوريا المصرية</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@500;700;900&display=swap" rel="stylesheet">
+    <style>
+        /* =========================================
+           1. CORE VARIABLES & TYPOGRAPHY
+           ========================================= */
+        :root {
+            --bg-color: #030508;
+            --text-main: #ffffff;
+            --text-muted: #cddcf0;
+            --glass-bg: rgba(10, 15, 25, 0.88); 
+            --glass-border: rgba(255, 255, 255, 0.12);
+            
+            --theme-med: #00e676; 
+            --theme-eng: #2979ff; 
+            --theme-bus: #ffab00; 
+            --theme-art: #f50057; 
+            
+            --current-theme: #ffffff;
+        }
+
+        * { box-sizing: border-box; outline: none; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+        
+        body, html {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif;
+            overflow: hidden;
+            user-select: none; 
+        }
+
+        /* =========================================
+           2. CINEMATIC BACKGROUND & FX
+           ========================================= */
+        #particle-canvas {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none;
+            transition: filter 1.5s ease;
+        }
+        .cinematic-vignette {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none;
+            background: radial-gradient(circle at center, transparent 15%, rgba(0,0,0,0.98) 100%);
+        }
+        
+        #progress-bar {
+            position: fixed; top: 0; left: 0; height: 5px; background: var(--current-theme);
+            width: 0%; z-index: 999; transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1), background-color 1s ease;
+            box-shadow: 0 0 20px var(--current-theme);
+        }
+
+        /* =========================================
+           3. 3D SCENE SYSTEM
+           ========================================= */
+        #app { position: relative; width: 100vw; height: 100vh; z-index: 10; perspective: 2000px; }
+        
+        .scene {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            opacity: 0; visibility: hidden;
+            transform: translateZ(-400px) scale(0.85) rotateY(8deg);
+            transition: all 1.2s cubic-bezier(0.25, 1, 0.3, 1);
+            padding: 50px;
+            will-change: transform, opacity; 
+        }
+        
+        .scene.active {
+            opacity: 1; visibility: visible;
+            transform: translateZ(0) scale(1) rotateY(0deg);
+        }
+
+        .scene.prev { transform: translateZ(400px) scale(1.1) rotateY(-8deg); opacity: 0; }
+        .scene.next { transform: translateZ(-400px) scale(0.85) rotateY(8deg); opacity: 0; }
+
+        /* =========================================
+           4. STAGGERED REVEAL ANIMATIONS
+           ========================================= */
+        .reveal { opacity: 0; transform: translateY(40px); transition: all 0.9s cubic-bezier(0.25, 1, 0.3, 1); }
+        .active .reveal { opacity: 1; transform: translateY(0); }
+        .active .delay-1 { transition-delay: 0.15s; }
+        .active .delay-2 { transition-delay: 0.3s; }
+        .active .delay-3 { transition-delay: 0.45s; }
+        .active .delay-4 { transition-delay: 0.6s; }
+        .active .delay-5 { transition-delay: 0.75s; }
+
+        /* =========================================
+           5. PREMIUM UI COMPONENTS & 3D CREDITS
+           ========================================= */
+        .glass-panel {
+            background: var(--glass-bg); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+            border: 1px solid var(--glass-border); border-radius: 30px; padding: 50px;
+            box-shadow: 0 40px 100px rgba(0,0,0,0.9), inset 0 2px 0 rgba(255,255,255,0.1);
+            max-width: 1400px; width: 100%; max-height: 85vh;
+            transform-style: preserve-3d; /* For Parallax */
+        }
+
+        /* --- 3D CREDITS BOX --- */
+        .credits-container {
+            display: flex; gap: 50px; margin-top: 35px;
+            background: linear-gradient(135deg, rgba(20, 30, 50, 0.6), rgba(0, 0, 0, 0.8));
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            padding: 25px 50px; border-radius: 25px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8), inset 0 2px 20px rgba(255,255,255,0.05);
+            transform-style: preserve-3d;
+            transition: transform 0.1s ease-out;
+            position: relative;
+            overflow: hidden;
+        }
+        .credits-container::before {
+            content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.05) 0%, transparent 60%);
+            pointer-events: none;
+        }
+        .credit-col { text-align: center; transform: translateZ(30px); /* يبرز النص للخارج */ }
+        
+        .credit-role {
+            font-size: 1.2rem; color: #a0b2c6; font-weight: 700; margin-bottom: 8px; letter-spacing: 1px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+        }
+        .credit-name {
+            font-size: 2.2rem; font-weight: 900; color: #ffffff;
+            /* تأثير 3D سينمائي نافر مع إضاءة */
+            text-shadow: 
+                0 1px 0 #cccccc, 
+                0 2px 0 #c9c9c9, 
+                0 3px 0 #bbbbbb, 
+                0 4px 0 #b9b9b9, 
+                0 5px 0 #aaaaaa, 
+                0 6px 1px rgba(0,0,0,0.1), 
+                0 0 15px rgba(255,255,255,0.3), 
+                0 5px 15px rgba(0,0,0,0.4), 
+                0 15px 25px rgba(0,0,0,0.5);
+            margin: 0 0 5px 0;
+            letter-spacing: 1px;
+        }
+        .credit-desc {
+            font-size: 1.15rem; color: #8aa0b8; font-weight: 700;
+            text-shadow: 0 2px 5px rgba(0,0,0,1);
+        }
+
+        h1, h2, h3 { margin: 0 0 25px 0; font-weight: 900; line-height: 1.4; text-shadow: 0 5px 20px rgba(0,0,0,0.9); }
+        
+        .text-gradient {
+            background-clip: text; -webkit-background-clip: text; color: transparent;
+            background-image: linear-gradient(to right, var(--current-theme), #ffffff);
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+        }
+
+        p, li, .feature-item { 
+            font-size: 1.4rem; 
+            line-height: 1.9; 
+            text-shadow: 0 3px 6px rgba(0,0,0,1); 
+            font-weight: 700; 
+            letter-spacing: 0.5px;
+        }
+
+        .btn-cinematic {
+            background: transparent; border: 3px solid var(--current-theme); color: #fff;
+            padding: 18px 55px; font-size: 1.6rem; border-radius: 50px; cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); font-weight: 900;
+            position: relative; overflow: hidden; margin-top: 40px;
+            box-shadow: 0 0 25px rgba(0,0,0,0.7);
+            font-family: 'Cairo', sans-serif;
+            transform: translateZ(20px);
+        }
+        .btn-cinematic::before {
+            content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transition: all 0.6s ease;
+        }
+        .btn-cinematic:hover {
+            background: var(--current-theme); transform: scale(1.08) translateZ(30px) translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.8), 0 0 40px var(--current-theme); color: #000;
+        }
+        .btn-cinematic:hover::before { left: 100%; }
+
+        ::-webkit-scrollbar { width: 12px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.5); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: var(--current-theme); border-radius: 10px; border: 3px solid rgba(0,0,0,0.5); }
+
+        /* =========================================
+           6. TRACK LAYOUT & INFOGRAPHIC ELEMENTS
+           ========================================= */
+        .track-layout { display: grid; grid-template-columns: 1.2fr 2fr; gap: 40px; height: 100%; }
+        
+        .track-sidebar {
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            text-align: center; border-left: 2px solid rgba(255,255,255,0.1); padding-left: 30px;
+            position: relative;
+        }
+        
+        .track-content { overflow-y: auto; padding-right: 20px; padding-bottom: 20px; }
+        
+        .icon-3d {
+            font-size: 8rem; margin-bottom: 20px;
+            filter: drop-shadow(0 20px 30px rgba(0,0,0,0.9)) drop-shadow(0 0 50px var(--current-theme));
+            animation: levitate 4s ease-in-out infinite, pulseGlow 2s infinite alternate;
+        }
+        
+        @keyframes levitate {
+            0%, 100% { transform: translateY(0) rotate(-3deg); }
+            50% { transform: translateY(-20px) rotate(3deg); }
+        }
+        @keyframes pulseGlow {
+            0% { filter: drop-shadow(0 20px 30px rgba(0,0,0,0.9)) drop-shadow(0 0 30px var(--current-theme)); }
+            100% { filter: drop-shadow(0 20px 30px rgba(0,0,0,0.9)) drop-shadow(0 0 70px var(--current-theme)); }
+        }
+
+        .data-card {
+            background: linear-gradient(135deg, rgba(255,255,255,0.05), rgba(0,0,0,0.8));
+            border-radius: 20px; padding: 30px; margin-bottom: 25px;
+            border: 1px solid rgba(255,255,255,0.08); transition: all 0.4s ease;
+            position: relative; overflow: hidden;
+        }
+        .data-card::before {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(45deg, transparent, rgba(255,255,255,0.03), transparent);
+            transform: translateX(-100%); transition: 0.6s;
+        }
+        .data-card::after {
+            content: ''; position: absolute; top: 0; right: 0; width: 5px; height: 100%;
+            background: var(--current-theme); box-shadow: -2px 0 10px var(--current-theme);
+        }
+        .data-card:hover { transform: translateX(-10px) scale(1.02); border-color: rgba(255,255,255,0.3); }
+        .data-card:hover::before { transform: translateX(100%); }
+
+        .feature-list { list-style: none; padding: 0; margin: 0; }
+        .feature-item {
+            display: flex; align-items: flex-start; margin-bottom: 20px; position: relative; padding-right: 40px;
+        }
+        .feature-item::before {
+            content: '✔'; position: absolute; right: 0; top: 5px;
+            color: #000; background: var(--current-theme); width: 26px; height: 26px;
+            border-radius: 50%; display: flex; justify-content: center; align-items: center;
+            font-size: 1rem; font-weight: 900; box-shadow: 0 0 15px var(--current-theme);
+        }
+
+        .colleges-map { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 20px; }
+        .college-tag {
+            background: rgba(0,0,0,0.7); border: 2px solid var(--current-theme);
+            padding: 10px 22px; border-radius: 50px; font-size: 1.2rem; font-weight: 800;
+            color: #fff; box-shadow: 0 5px 15px rgba(0,0,0,0.6);
+            transition: all 0.3s; cursor: default;
+        }
+        .college-tag:hover { background: var(--current-theme); color: #000; transform: scale(1.1) translateY(-3px); }
+
+        .system-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 30px; margin-top: 40px;
+        }
+        .sys-box {
+            background: rgba(0,0,0,0.6); padding: 45px 35px; border-radius: 25px; text-align: center;
+            border-top: 5px solid var(--current-theme); border-bottom: 1px solid rgba(255,255,255,0.1);
+            transition: 0.4s; box-shadow: 0 15px 30px rgba(0,0,0,0.5);
+        }
+        .sys-box:hover { transform: translateY(-15px); background: rgba(255,255,255,0.08); box-shadow: 0 25px 50px rgba(0,0,0,0.8); }
+        .sys-box h3 { font-size: 2rem; margin-bottom: 15px; }
+
+        .hud {
+            position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%); z-index: 100;
+            display: flex; gap: 20px; background: rgba(0,0,0,0.8); padding: 15px 35px; border-radius: 50px;
+            backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.15);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+        }
+        .dot {
+            width: 16px; height: 16px; border-radius: 50%; background: #555; cursor: pointer; transition: 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .dot.active { background: var(--current-theme); box-shadow: 0 0 20px var(--current-theme); transform: scale(1.6); }
+
+        #laser {
+            position: fixed; width: 22px; height: 22px; background: #ff0055; border-radius: 50%;
+            pointer-events: none; z-index: 9999; opacity: 0; 
+            box-shadow: 0 0 20px #ff0055, 0 0 40px #ff0055, 0 0 60px #ff0055;
+            transition: opacity 0.2s, transform 0.1s; mix-blend-mode: screen; margin-left: -11px; margin-top: -11px;
+        }
+
+        /* =========================================
+           7. SOVEREIGN FOOTER (Strict Preservation)
+           ========================================= */
+        .footer-scene { padding: 0 !important; justify-content: flex-end !important; background: transparent; }
+        
+        .content-placeholder { flex: 1; }
+        .footer-wrapper {
+            width: 100vw; padding: 80px 20px; background: rgba(2, 5, 10, 0.98); 
+            border-top: 3px solid var(--primary-color, #E5C158); 
+            display: flex; justify-content: center; align-items: center; 
+            position: relative; overflow: hidden; height: 550px; flex-shrink: 0; 
+            box-shadow: 0 -15px 50px rgba(0,0,0,0.8);
+        }
+        .circle-container { position: relative; width: 480px; height: 480px; display: flex; justify-content: center; align-items: center; }
+        .rotating-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; animation: rotateText 22s linear infinite; z-index: 2; }
+        @keyframes rotateText { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .text-path-style { font-size: 20px; fill: #ffffff; font-family: 'Arial Black', Impact, sans-serif; letter-spacing: 6px; filter: drop-shadow(2px 2px 3px rgba(0,0,0,0.9)); }
+        .name-highlight { font-size: 28px; font-weight: 900; fill: var(--primary-color, #E5C158); letter-spacing: 4px; text-transform: uppercase; }
+        .center-prayer {
+            position: relative; width: 340px; text-align: center; font-size: 2.2rem; font-weight: 900; 
+            color: var(--primary-color, #E5C158); line-height: 1.8; z-index: 10; display: flex; flex-direction: column; justify-content: center; align-items: center;
+            text-shadow: 0 1px 0 #cca942, 0 2px 0 #b3943a, 0 3px 0 #997e31, 0 4px 0 #806929, 0 5px 0 #665421, 0 10px 20px rgba(0,0,0,0.9), 0 0 40px var(--primary-glow, rgba(229, 193, 88, 0.4));
+        }
+        .center-prayer::before { content: "🦅"; font-size: 2.2rem; margin-bottom: 15px; opacity: 0.95; filter: drop-shadow(0 0 10px var(--primary-glow, rgba(229, 193, 88, 0.4))); }
+        .center-prayer::after { content: "🦅"; font-size: 2.2rem; margin-top: 15px; opacity: 0.95; filter: drop-shadow(0 0 10px var(--primary-glow, rgba(229, 193, 88, 0.4))); transform: scaleX(-1); }
+    </style>
+</head>
+<body>
+
+    <div id="progress-bar"></div>
+    <canvas id="particle-canvas"></canvas>
+    <div class="cinematic-vignette"></div>
+    <div id="laser"></div>
+    <div class="hud" id="hud"></div>
+
+    <div id="app">
+        <div class="scene active" data-theme="#ffffff">
+            <div class="reveal delay-1" style="text-align: center;">
+                <h1 class="text-gradient" style="font-size: 7.5rem; letter-spacing: -2px;">التحول إلى نظام البكالوريا</h1>
+                <p style="font-size: 2.6rem; color: var(--text-muted); font-weight: 700;">اختيارك اليوم… يصنع مستقبلك غداً</p>
+            </div>
+            
+            <div class="credits-container reveal delay-2" id="tilt-box">
+                <div class="credit-col" style="border-left: 2px solid rgba(255,255,255,0.1); padding-left: 40px;">
+                    <div class="credit-role">تحت إشراف</div>
+                    <div class="credit-name">الدكتور/ راغب مختار محمد</div>
+                    <div class="credit-desc">مدير إدارة التعليم الثانوى العام<br>بمديرية التربية والتعليم بالدقهلية</div>
+                </div>
+                <div class="credit-col" style="padding-right: 40px;">
+                    <div class="credit-role">إعداد</div>
+                    <div class="credit-name">نيرة محمود الدسوقي</div>
+                    <div class="credit-desc">مدير مرحلة ثانوى<br>بمديرية التربية والتعليم بالدقهلية</div>
+                </div>
+            </div>
+
+            <button class="btn-cinematic reveal delay-3" onclick="nextScene()">ابدأ التجربة 🎬</button>
+            <div class="reveal delay-4" style="margin-top:40px; background: rgba(0,0,0,0.6); padding: 15px 30px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1);">
+                <p style="color:#ddd; font-size:1.3rem; font-weight: 700; margin: 0;">
+                    (للتحكم: أسهم لوحة المفاتيح ⬅️ ➡️ | السحب بالشاشة (Swipe) | <strong>F</strong> لملء الشاشة | <strong>P</strong> لمؤشر الليزر)
+                </p>
+            </div>
+        </div>
+
+        <div class="scene" data-theme="#00e5ff">
+            <div class="glass-panel">
+                <h2 class="text-gradient reveal delay-1" style="text-align: center; font-size: 4rem;">هندسة النظام الجديد</h2>
+                <div class="system-grid">
+                    <div class="sys-box reveal delay-1">
+                        <h3>🌐 4 عوالم رئيسية</h3>
+                        <p>الطب، الهندسة، الأعمال، والآداب. يجب على الطالب اختيار مسار واحد بتركيز تام.</p>
+                    </div>
+                    <div class="sys-box reveal delay-2">
+                        <h3>⏳ رحلة العامين</h3>
+                        <p>تبدأ الشهادة من الصف الثاني الثانوي وتمتد لعامين حتى التخرج في الثالث الثانوي.</p>
+                    </div>
+                    <div class="sys-box reveal delay-3">
+                        <h3>🎯 التركيز المفرط</h3>
+                        <p>7 مواد إجمالية فقط! (4 مواد في الثاني الثانوي، و 3 مواد في الثالث الثانوي).</p>
+                    </div>
+                    <div class="sys-box reveal delay-4">
+                        <h3>🔄 ديناميكية الفرص</h3>
+                        <p>فرصتان للامتحان في العام، ومرونة فائقة للجمع بين مسارين معاً!</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="scene" data-theme="#00e676">
+            <div class="glass-panel track-layout">
+                <div class="track-sidebar reveal delay-1">
+                    <div class="icon-3d">🧬</div>
+                    <h2 class="text-gradient" style="font-size: 3.5rem;">الطب وعلوم الحياة</h2>
+                    <p style="font-size: 1.6rem; color: #ddd;">نبض المستقبل، وكليات القمة في القطاع الطبي والعلمي.</p>
+                </div>
+                <div class="track-content">
+                    <div class="data-card reveal delay-1">
+                        <h3 style="color: var(--current-theme);">📖 الهيكل الأكاديمي</h3>
+                        <p><strong>الصف الثاني:</strong> لغة عربية، أجنبية أولى، تاريخ مصري + (رياضيات أو فيزياء).</p>
+                        <p><strong>الصف الثالث:</strong> تربية دينية، أحياء (رفيع)، كيمياء (رفيع).</p>
+                    </div>
+                    <div class="data-card reveal delay-2">
+                        <h3 style="color: var(--current-theme);">✨ قوة المسار (المميزات)</h3>
+                        <ul class="feature-list">
+                            <li class="feature-item">يؤهل للعدد الأكبر من الكليات مقارنة بأي مسار آخر.</li>
+                            <li class="feature-item">الأكثر ارتباطاً بسوق العمل الفعلي وكليات القمة.</li>
+                            <li class="feature-item">مرونة علمية: يسمح بدراسة الرياضيات بدلاً من الفيزياء في الثاني الثانوي.</li>
+                            <li class="feature-item">إمكانية هندسية: يجمع مع الهندسة بإضافة مادتين فقط (رياضيات وفيزياء).</li>
+                        </ul>
+                    </div>
+                    <div class="data-card reveal delay-3">
+                        <h3 style="color: var(--current-theme);">🎯 الكليات المستهدفة</h3>
+                        <div class="colleges-map">
+                            <div class="college-tag">الطب البشري</div><div class="college-tag">طب الأسنان</div>
+                            <div class="college-tag">الصيدلة</div><div class="college-tag">العلاج الطبيعي</div>
+                            <div class="college-tag">التمريض</div><div class="college-tag">الطب البيطري</div>
+                            <div class="college-tag">العلوم</div><div class="college-tag">الزراعة</div>
+                            <div class="college-tag">الفنون التطبيقية</div><div class="college-tag">علوم البترول</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="scene" data-theme="#2979ff">
+            <div class="glass-panel track-layout">
+                <div class="track-sidebar reveal delay-1">
+                    <div class="icon-3d">🤖</div>
+                    <h2 class="text-gradient" style="font-size: 3.5rem;">الهندسة وعلوم الحاسب</h2>
+                    <p style="font-size: 1.6rem; color: #ddd;">بوابة الرقمنة، الذكاء الاصطناعي، وابتكار الغد.</p>
+                </div>
+                <div class="track-content">
+                    <div class="data-card reveal delay-1">
+                        <h3 style="color: var(--current-theme);">📖 الهيكل الأكاديمي</h3>
+                        <p><strong>الصف الثاني:</strong> لغة عربية، أجنبية أولى، تاريخ مصري + (كيمياء أو برمجة).</p>
+                        <p><strong>الصف الثالث:</strong> تربية دينية، رياضيات (رفيع)، فيزياء (رفيع).</p>
+                    </div>
+                    <div class="data-card reveal delay-2">
+                        <h3 style="color: var(--current-theme);">✨ قوة المسار (المميزات)</h3>
+                        <ul class="feature-list">
+                            <li class="feature-item">الأكثر تطابقاً مع التوجه السيادي للرقمنة والذكاء الاصطناعي.</li>
+                            <li class="feature-item">المسار "الوحيد" المؤهل لـ (الحاسبات، الملاحة الفضاء، الفنون الجميلة عمارة).</li>
+                            <li class="feature-item">يخدم ذوي الميول الرياضية والبرمجية، مع خيار استبدال الكيمياء بالبرمجة.</li>
+                            <li class="feature-item">المرتبة الثانية بعد الطب في حجم التأهيل لكليات القمة.</li>
+                        </ul>
+                    </div>
+                    <div class="data-card reveal delay-3">
+                        <h3 style="color: var(--current-theme);">🎯 الكليات المستهدفة</h3>
+                        <div class="colleges-map">
+                            <div class="college-tag">الهندسة</div><div class="college-tag">التخطيط العمراني</div>
+                            <div class="college-tag">الحاسبات والذكاء الاصطناعي</div><div class="college-tag">علوم الملاحة والفضاء</div>
+                            <div class="college-tag">الفنون الجميلة (عمارة)</div><div class="college-tag">هندسة زراعية</div>
+                            <div class="college-tag">الجامعات التكنولوجية</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="scene" data-theme="#ffab00">
+            <div class="glass-panel track-layout">
+                <div class="track-sidebar reveal delay-1">
+                    <div class="icon-3d">📈</div>
+                    <h2 class="text-gradient" style="font-size: 3.5rem;">مسار الأعمال</h2>
+                    <p style="font-size: 1.6rem; color: #ddd;">ريادة الأعمال، الثقافة المالية، وصناعة القرار.</p>
+                </div>
+                <div class="track-content">
+                    <div class="data-card reveal delay-1">
+                        <h3 style="color: var(--current-theme);">📖 الهيكل الأكاديمي</h3>
+                        <p><strong>الصف الثاني:</strong> لغة عربية، أجنبية أولى، تاريخ مصري + (إدارة أعمال أو محاسبة).</p>
+                        <p><strong>الصف الثالث:</strong> تربية دينية، رياضيات (عادي)، اقتصاد (رفيع).</p>
+                    </div>
+                    <div class="data-card reveal delay-2">
+                        <h3 style="color: var(--current-theme);">✨ قوة المسار (المميزات)</h3>
+                        <ul class="feature-list">
+                            <li class="feature-item">مسار تطبيقي ذكي يتضمن مادة "مستوى رفيع" واحدة فقط (الاقتصاد).</li>
+                            <li class="feature-item">انسجام المقررات (الرياضيات، المحاسبة، الاقتصاد) يضاعف فرصة التفوق.</li>
+                            <li class="feature-item">يُكسب الطالب فهماً مبكراً للأسواق، إدارة الأموال، والتخطيط المالي.</li>
+                            <li class="feature-item">الخيار الأمثل للراغبين في العمل الحر والمبيعات والقطاع المالي.</li>
+                        </ul>
+                    </div>
+                    <div class="data-card reveal delay-3">
+                        <h3 style="color: var(--current-theme);">🎯 الكليات المستهدفة</h3>
+                        <div class="colleges-map">
+                            <div class="college-tag">التجارة</div><div class="college-tag">الأعمال</div>
+                            <div class="college-tag">التنمية التكنولوجية والإدارية</div><div class="college-tag">تكنولوجيا الإدارة ونظم المعلومات</div>
+                            <div class="college-tag">الاقتصاد والعلوم السياسية</div><div class="college-tag">السياحة والفنادق</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="scene" data-theme="#f50057">
+            <div class="glass-panel track-layout">
+                <div class="track-sidebar reveal delay-1">
+                    <div class="icon-3d">🏛️</div>
+                    <h2 class="text-gradient" style="font-size: 3.5rem;">الآداب والفنون</h2>
+                    <p style="font-size: 1.6rem; color: #ddd;">عالم اللغات، التراث، والعلوم الإنسانية.</p>
+                </div>
+                <div class="track-content">
+                    <div class="data-card reveal delay-1">
+                        <h3 style="color: var(--current-theme);">📖 الهيكل الأكاديمي</h3>
+                        <p><strong>الصف الثاني:</strong> لغة عربية، أجنبية أولى، تاريخ مصري + (لغة أجنبية 2 أو علم نفس).</p>
+                        <p><strong>الصف الثالث:</strong> تربية دينية، إحصاء (عادي)، جغرافيا (رفيع).</p>
+                    </div>
+                    <div class="data-card reveal delay-2">
+                        <h3 style="color: var(--current-theme);">✨ قوة المسار (المميزات)</h3>
+                        <ul class="feature-list">
+                            <li class="feature-item">المسار "الوحيد" المؤهل لكليات الألسن وأقسام اللغات والترجمة.</li>
+                            <li class="feature-item">المسار الوحيد المؤهل لتخصصات علم النفس والجغرافيا.</li>
+                            <li class="feature-item">مواد كلاسيكية مستقرة، تعتمد على الحفظ والتحليل وتتضمن (رفيع) واحد.</li>
+                            <li class="feature-item">انخفاض العبء الكمي (إحصاء فقط كمادة غير أدبية) يقلل التوتر الدراسي.</li>
+                        </ul>
+                    </div>
+                    <div class="data-card reveal delay-3">
+                        <h3 style="color: var(--current-theme);">🎯 الكليات المستهدفة</h3>
+                        <div class="colleges-map">
+                            <div class="college-tag">الألسن</div><div class="college-tag">الآداب</div>
+                            <div class="college-tag">التربية</div><div class="college-tag">الاقتصاد والعلوم السياسية</div>
+                            <div class="college-tag">الحقوق</div><div class="college-tag">الإعلام</div>
+                            <div class="college-tag">الآثار</div><div class="college-tag">الفنون الجميلة (فنون)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="scene footer-scene" data-theme="#E5C158">
+            <div class="reveal delay-1" style="flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding-top: 50px;">
+                <h1 class="text-gradient" style="font-size: 6rem; text-shadow: 0 10px 30px rgba(0,0,0,0.9);">القرار بين يديك</h1>
+                <p style="font-size: 2.2rem; color: #fff; font-weight: 700;">مسارك هو نقطة الانطلاق نحو ريادة المستقبل</p>
+                <button class="btn-cinematic" style="margin-top: 30px; font-size: 1.4rem; padding: 12px 40px;" onclick="goToScene(0)">🔄 إعادة العرض</button>
+            </div>
+            
+            <div class="footer-wrapper reveal delay-2">
+                <div class="circle-container">
+                    <svg viewBox="0 0 500 500" class="rotating-svg">
+                        <defs><path id="textCirclePath" d="M 250, 440 A 190,190 0 1,1 250,60 A 190,190 0 1,1 250,440" /></defs>
+                        <circle cx="250" cy="250" r="215" fill="none" stroke="rgba(229, 193, 88, 0.3)" stroke-width="4" />
+                        <circle cx="250" cy="250" r="165" fill="none" stroke="rgba(229, 193, 88, 0.3)" stroke-width="4" />
+                        <text><textPath href="#textCirclePath" startOffset="50%" text-anchor="middle" class="text-path-style">
+                            ALL RIGHTS RESERVED ®© DESIGNED & DEVELOPED BY <tspan class="name-highlight">MAHMOUD MOHAMED</tspan>
+                        </textPath></text>
+                    </svg>
+                    <div class="center-prayer">
+                        <span>ولا تنسونا من خالص دعائكم بظهر الغيب</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const scenes = document.querySelectorAll('.scene');
+        const dotsContainer = document.getElementById('hud');
+        const progressBar = document.getElementById('progress-bar');
+        const root = document.documentElement;
+        let currentSceneIndex = 0;
+        let laserActive = false;
+
+        // Initialize HUD
+        scenes.forEach((_, i) => {
+            const dot = document.createElement('div');
+            dot.className = 'dot' + (i === 0 ? ' active' : '');
+            dot.onclick = () => goToScene(i);
+            dotsContainer.appendChild(dot);
+        });
+        const dots = document.querySelectorAll('.dot');
+
+        function updateScene() {
+            scenes.forEach((scene, i) => {
+                scene.classList.remove('active', 'prev', 'next');
+                if (i === currentSceneIndex) {
+                    scene.classList.add('active');
+                    const newTheme = scene.getAttribute('data-theme');
+                    root.style.setProperty('--current-theme', newTheme);
+                    if(typeof updateParticlesTheme === 'function') updateParticlesTheme(newTheme);
+                } else if (i < currentSceneIndex) {
+                    scene.classList.add('prev');
+                } else {
+                    scene.classList.add('next');
+                }
+            });
+            
+            dots.forEach((dot, i) => dot.classList.toggle('active', i === currentSceneIndex));
+            
+            const progressPercentage = ((currentSceneIndex) / (scenes.length - 1)) * 100;
+            progressBar.style.width = progressPercentage + '%';
+        }
+
+        function nextScene() { if (currentSceneIndex < scenes.length - 1) { currentSceneIndex++; updateScene(); } }
+        function prevScene() { if (currentSceneIndex > 0) { currentSceneIndex--; updateScene(); } }
+        function goToScene(index) { currentSceneIndex = index; updateScene(); }
+
+        // Keyboard & Fullscreen Controls
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') nextScene();
+            if (e.key === 'ArrowRight' || e.key === 'ArrowUp') prevScene();
+            if (e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); nextScene(); }
+            if (e.key === 'PageUp') { e.preventDefault(); prevScene(); }
+            
+            if (e.key.toLowerCase() === 'f') {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(err => console.log(err));
+                } else {
+                    document.exitFullscreen();
+                }
+            }
+
+            if (e.key.toLowerCase() === 'p') {
+                laserActive = !laserActive;
+                document.getElementById('laser').style.opacity = laserActive ? '1' : '0';
+            }
+        });
+
+        // Touch/Swipe Controls
+        let touchStartX = 0;
+        let touchEndX = 0;
+        window.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].screenX; });
+        window.addEventListener('touchend', e => {
+            touchEndX = e.changedTouches[0].screenX;
+            handleSwipe();
+        });
+        function handleSwipe() {
+            const threshold = 50;
+            if (touchEndX < touchStartX - threshold) nextScene();
+            if (touchEndX > touchStartX + threshold) prevScene();
+        }
+
+        // Parallax & Laser Tracker
+        let mouseX = -1000;
+        let mouseY = -1000;
+        const laser = document.getElementById('laser');
+        const tiltBox = document.getElementById('tilt-box');
+
+        document.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+            
+            if(laserActive) {
+                laser.style.left = mouseX + 'px';
+                laser.style.top = mouseY + 'px';
+                laser.style.transform = 'scale(1.2)';
+                setTimeout(() => laser.style.transform = 'scale(1)', 100);
+            }
+
+            // Parallax Tilt Effect for Title Box
+            if(currentSceneIndex === 0 && tiltBox) {
+                const x = (window.innerWidth / 2 - e.pageX) / 40;
+                const y = (window.innerHeight / 2 - e.pageY) / 40;
+                tiltBox.style.transform = `rotateY(${x}deg) rotateX(${y}deg)`;
+            }
+        });
+
+        // =========================================
+        // NEURAL PARTICLE NETWORK
+        // =========================================
+        const canvas = document.getElementById('particle-canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        let currentParticleColor = '#ffffff';
+
+        function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.baseX = this.x;
+                this.baseY = this.y;
+                this.size = Math.random() * 2.5 + 1;
+                this.speedX = Math.random() * 1 - 0.5;
+                this.speedY = Math.random() * 1 - 0.5;
+            }
+            update() {
+                this.x += this.speedX; this.y += this.speedY;
+                if (this.x > canvas.width) this.x = 0; if (this.x < 0) this.x = canvas.width;
+                if (this.y > canvas.height) this.y = 0; if (this.y < 0) this.y = canvas.height;
+
+                let dx = mouseX - this.x;
+                let dy = mouseY - this.y;
+                let distance = Math.sqrt(dx * dx + dy * dy);
+                let forceDirectionX = dx / distance;
+                let forceDirectionY = dy / distance;
+                let maxDistance = 150;
+                let force = (maxDistance - distance) / maxDistance;
+                let directionX = forceDirectionX * force * 5;
+                let directionY = forceDirectionY * force * 5;
+
+                if (distance < maxDistance) {
+                    this.x -= directionX;
+                    this.y -= directionY;
+                }
+            }
+            draw() {
+                ctx.fillStyle = currentParticleColor;
+                ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.globalAlpha = 0.6; ctx.fill();
+            }
+        }
+
+        function initParticles() {
+            particles = [];
+            let particleCount = window.innerWidth < 768 ? 50 : 100;
+            for (let i = 0; i < particleCount; i++) particles.push(new Particle());
+        }
+
+        function updateParticlesTheme(color) { currentParticleColor = color; }
+
+        function animateParticles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            for (let i = 0; i < particles.length; i++) {
+                particles[i].update();
+                particles[i].draw();
+                
+                for (let j = i; j < particles.length; j++) {
+                    const dx = particles[i].x - particles[j].x;
+                    const dy = particles[i].y - particles[j].y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < 130) {
+                        ctx.beginPath();
+                        ctx.strokeStyle = currentParticleColor;
+                        ctx.globalAlpha = 1 - (distance / 130);
+                        ctx.lineWidth = 0.8;
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(particles[j].x, particles[j].y);
+                        ctx.stroke();
+                    }
+                }
+            }
+            requestAnimationFrame(animateParticles);
+        }
+
+        initParticles();
+        animateParticles();
+        updateScene(); 
+
+    </script>
+</body>
+</html>
+
+
